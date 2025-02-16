@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+   
+    <title>SCD41 Sensor Response</title>
+    
+    <!--  A popular CSS framework for styling --> 
+   
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+    <!-- A library to make charts and graphs --> 
+    
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+   
+        
+    <style>
+        <!-- Setting up webpage looks --> 
+          
+     body {
+            background-image: url('{{ url_for('static', filename='pico1.jpg') }}'); 
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+    </style>
+
+
+</head>
+
+
+<body>
+    <!-- The top header of my webpage --> 
+    
+    <div class="container"style="background-color: #007bff; color: #fff; opacity:0.8;padding: 20px;">
+       
+        <h1 class="mt-5">SCD41 Sensor Data</h1>
+    
+    </div>
+
+   
+    <!-- A section to display the graph --> <!-- Real-Time Data Logging -->
+    
+    <div class="container mt-4"style="background-color: #28a745; color: #fff; opacity:1;padding: 20px;">
+      
+        <h2>Real-Time Data Logging Graph</h2>
+       
+        <div id="plotlyChart"></div>
+    
+    </div>
+
+    <!-- A section to display the data in a table format --> 
+    
+    <div class="container mt-4"style="background-color: #a7c410; color: #000;opacity:0.89;padding: 20px;">
+       
+        <h2>Real-Time Data Table</h2>
+       
+        <div class="row data-table">
+          
+            <div class="col-md-6">
+           
+                <!-- This is the table --> 
+           
+                <table class="table table-bordered">
+                
+                    <thead>
+              
+                        <tr>
+                             <!-- Header of the table --> 
+                
+                            <th scope="col">Parameter</th>
+               
+                            <th scope="col">Value</th>
+              
+                        </tr>
+            
+                    </thead>
+           
+                    <tbody>
+            
+                        <tr>
+                            <!-- Data rows of the table --> <!-- Loading is important to avoid filling of vague values --> 
+           
+                            <td>CO2 Conc (ppm)</td>
+            
+                            <td id="co2Value">Loading...</td>
+          
+                        </tr>
+           
+                        <tr>
+            
+                            <td>Temperature (°C)</td>
+            
+                            <td id="temperatureValue">Loading...</td>
+            
+                        </tr>
+           
+                        <tr>
+           
+                            <td>Humidity (%)</td>
+           
+                            <td id="humidityValue">Loading...</td>
+          
+                        </tr>
+         
+         
+                    </tbody>
+         
+                </table>
+        
+            </div>
+       
+        </div>
+  
+    </div>
+
+
+    <script>
+        
+        /* JavaScript to update and display sensor data */ 
+
+  
+
+        /* Variables to hold the data */
+
+        var co2Data = [];
+       
+        var temperatureData = [];
+        
+        var humidityData = [];
+      
+        var timestamps = [];
+
+        var layout = {
+         /* Details for chart looks */
+            
+             title: 'Sensor Data Over Time',
+         
+            xaxis: {
+                title: 'Timestamp',
+                showline: true,
+                showgrid: false,
+            },
+            yaxis: {
+                title: 'Value',
+                showline: true,
+                showgrid: true,
+            },
+        };
+
+        var config = {
+            displayModeBar: false,
+        };
+
+        var traceCO2 = {
+            x: timestamps,
+            y: co2Data,
+            mode: 'lines+text',
+            name: 'CO2 (ppm)',
+            text: [],
+            textposition: 'top right',
+            line: {
+                color: 'red',
+            },
+        };
+
+        var traceTemperature = {
+            x: timestamps,
+            y: temperatureData,
+            mode: 'lines+text',
+            name: 'Temperature (°C)',
+            text: [],
+            textposition: 'bottom right', // Display below the line
+            line: {
+                color: 'blue',
+            },
+        };
+
+        var traceHumidity = {
+            x: timestamps,
+            y: humidityData,
+            mode: 'lines+text',
+            name: 'Humidity (%)',
+            text: [],
+            textposition: 'top right', // Display above the line
+            line: {
+                color: 'green',
+            },
+        };
+
+        var data = [traceCO2, traceTemperature, traceHumidity];
+            // Chart holding Spot
+        
+        var plotlyChart = document.getElementById('plotlyChart');
+         
+           <!--  Important ..... Update the chat in 1 sec-->
+        
+        function updateData() {
+          
+            fetch('/data')
+          
+                .then(response => response.json())
+                .then(data => {
+               
+                    if (data.error) {
+               
+                        <!--  Important ..... Gives an error message if the sensor data doesnt send data -->  
+               
+                        console.error('Sensor data not available:', data.error);
+               
+                    } else {
+               
+                        var timestamp = new Date().toLocaleTimeString();
+
+                        // Appending to array
+                        
+                        timestamps.push(timestamp);
+                        co2Data.push(data.co2_ppm);
+                        temperatureData.push(data.temperature);
+                        humidityData.push(data.humidity);
+
+                        // Shows last 15 data points
+                        
+                        var maxDataPoints = 15;
+                        if (timestamps.length > maxDataPoints) {
+                            timestamps.shift();
+                            co2Data.shift();
+                            temperatureData.shift();
+                            humidityData.shift();
+                        }
+
+                        // Formatted annotated values values as String
+                        
+                        traceCO2.text = co2Data.map(String);
+                        traceTemperature.text = temperatureData.map(value => value.toFixed(3) + ' °C');
+                        traceHumidity.text = humidityData.map(value => value.toFixed(3) + '%');
+
+                
+                        Plotly.update(plotlyChart, data, layout, config);
+
+                        <!--  Important ..... Gives Real-Time sensor data --> 
+                       
+                        document.getElementById('co2Value').textContent = data.co2_ppm;
+                        
+                        document.getElementById('temperatureValue').textContent = data.temperature.toFixed(3) + ' °C';
+                        
+                        document.getElementById('humidityValue').textContent = data.humidity.toFixed(3) + '%';
+                        
+                        setTimeout(updateData, 1000); // 1 second
+                     }
+                 });
+        }
+
+        updateData();
+
+        // Makes Plotly chart
+        Plotly.newPlot(plotlyChart, data, layout, config);
+   
+    </script>
+
+</body>
+
+</html>
